@@ -9,8 +9,12 @@ public class BulletPool : MonoBehaviour
 
     private ObjectPool<EnemyBullet> bulletPool;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    void Awake()
     {
+        if (bulletPreFab == null)
+            Debug.LogError($"{name}: Bullet Pre Fab slot is empty.", this);
+
+
         bulletPool = new ObjectPool<EnemyBullet>
         (
             createFunc: CreateBullet,

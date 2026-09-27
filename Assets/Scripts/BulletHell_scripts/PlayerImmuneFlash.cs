@@ -9,7 +9,7 @@ public class PlayerImmuneFlash : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float fader = 0.2f; 
 
     private PlayerHPSystem hp;
-    private Color baseColor;
+    private float baseColor;
 
     private void Awake()
     {
@@ -18,7 +18,7 @@ public class PlayerImmuneFlash : MonoBehaviour
         if (sprite == null)
             sprite = GetComponent<SpriteRenderer>();
 
-        baseColor = sprite.color;
+        baseColor = sprite.color.a;
     }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -29,14 +29,16 @@ public class PlayerImmuneFlash : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Color color = baseColor;
+        Color color = sprite.color;
+        color.a = baseColor;
+
 
         if (hp.IsImmune)
         {
             bool fadeCond = Mathf.FloorToInt(Time.time * flashPerSec * 2f) % 2 == 0;
             if (fadeCond)
             {
-                color.a = baseColor.a * fader;
+                color.a = baseColor * fader;
             }
         }
         sprite.color = color;
@@ -46,7 +48,9 @@ public class PlayerImmuneFlash : MonoBehaviour
     {
         if (sprite != null)
         {
-            sprite.color = baseColor;
+            Color color = sprite.color;
+            color.a = baseColor;
+            sprite.color = color;
         }
     }
 }

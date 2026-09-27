@@ -8,11 +8,13 @@ public class EnemyBullet : MonoBehaviour
     [SerializeField] private int dmg;
     [SerializeField] private float speed;
     [SerializeField] private float lifetime = 6f;
+    [SerializeField] private float offScreenDespawn = 1f;
 
     public int Damage => dmg;
     public float Speed => speed;
 
     private IObjectPool<EnemyBullet> bulletPool;
+    private SpriteRenderer sprite;
     private float timeAlive;
     private bool released;
     private int originalDamage;
@@ -21,11 +23,12 @@ public class EnemyBullet : MonoBehaviour
     void Awake()
     {
         GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        sprite = GetComponentInChildren<SpriteRenderer>();
         originalDamage = dmg;
         originalSpeed = speed;
     }
 
-    void onEnable()
+    void OnEnable()
     {
         timeAlive = 0f;
         released = false;
@@ -38,13 +41,29 @@ public class EnemyBullet : MonoBehaviour
         bulletPool = hostPool;
     }
 
+    public void SetColor(Color color)
+    {
+        if (sprite != null)
+        {
+            sprite.color = color;
+        }
+    }
+
     // Update is called once per frame
     void Update()
     {
         transform.Translate(Vector2.up * speed * Time.deltaTime);
         timeAlive += Time.deltaTime;
         if (timeAlive >= lifetime)
+        {
             Despawn();
+            return;
+        }
+
+        if (PlayArea.Instance != null && !PlayArea.Instance.Contains(transform.position, offScreenDespawn))
+        {
+            Despawn();
+        }
     }
 
     void OnTriggerEnter2D(Collider2D other)
@@ -64,7 +83,8 @@ public class EnemyBullet : MonoBehaviour
 
     private void Despawn()
     {
-        if (released) return; // stops a double-release if it hits AND times out on the same frame
+        if (released) 
+            return; // stops a double-release if it hits AND times out on the same frame
         released = true;
 
         if (bulletPool != null)

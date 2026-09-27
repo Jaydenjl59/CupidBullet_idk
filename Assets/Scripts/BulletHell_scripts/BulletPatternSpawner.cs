@@ -49,7 +49,13 @@ public class BulletPatternSpawner : MonoBehaviour
     [SerializeField] private Transform player;
     [SerializeField] private float spawnRadius = 0f;
 
-    // Defaults for brand-new spawners: ring every 1s, aimed spread burst every 3s.
+    [Header("Enemy Link")]
+    [SerializeField] private EnemyHP enemyHP;
+    [SerializeField] private bool colorByEnemyHP = true;
+    [SerializeField] private Color fullHPColor = Color.black; // bullet color at full enemy HP
+    [SerializeField] private Color lowHPColor = Color.red; // bullet color near 0 enemy HP
+
+    // defaults for new spawners
     [SerializeField]
     private PatternSettings[] patterns =
     {
@@ -72,6 +78,10 @@ public class BulletPatternSpawner : MonoBehaviour
             if (found != null) player = found.transform;
         }
 
+        if (enemyHP == null)
+        {
+            enemyHP = GetComponent<EnemyHP>();
+        }       
         ResolveTriggers();
     }
 
@@ -102,7 +112,9 @@ public class BulletPatternSpawner : MonoBehaviour
 
     void Update()
     {
-        if (patterns == null || patterns.Length == 0) return;
+        if (patterns == null || patterns.Length == 0 || (enemyHP != null && !enemyHP.IsAlive)
+            || BattleManager.BattleDone)
+            return;
 
         if (cyclePatterns)
         {
@@ -256,6 +268,10 @@ public class BulletPatternSpawner : MonoBehaviour
         return Mathf.Atan2(-toTarget.x, toTarget.y) * Mathf.Rad2Deg;
     }
 
+    private Color CurrentBulletColor()
+    {
+        return Color.Lerp(lowHPColor, fullHPColor, enemyHP.HPPercent);
+    }
     private void SpawnAtAngle(BulletPool pool, float angle)
     {
         float radian = angle * Mathf.Deg2Rad;
@@ -263,6 +279,11 @@ public class BulletPatternSpawner : MonoBehaviour
         Vector3 pos = transform.position + direction * spawnRadius;
         Quaternion rotation = Quaternion.Euler(0f, 0f, angle);
 
-        pool.SpawnBullet(pos, rotation);
+        EnemyBullet bullet = pool.SpawnBullet(pos, rotation);
+
+        //pool.SpawnBullet(pos, rotation);
+
+        if (colorByEnemyHP && enemyHP != null)
+            bullet.SetColor(CurrentBulletColor());
     }
 }
