@@ -72,6 +72,6 @@ public class PlayerHPBar : MonoBehaviour
         if (hpFiller == null) 
             return;
         
-        hpFiller.fillAmount = Mathf.Lerp(fillStart, fillEnd, percent);
+        hpFiller.fillAmount = percent <= 0f ? 0f : Mathf.Lerp(fillStart, fillEnd, percent);
     }
 }
