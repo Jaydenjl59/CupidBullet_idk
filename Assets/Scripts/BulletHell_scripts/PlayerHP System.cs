@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.InputSystem;
+//using UnityEngine.InputSystem;
 
 public class PlayerHPSystem : MonoBehaviour {
     [SerializeField] private int maxHP = 100;
@@ -16,16 +16,16 @@ public class PlayerHPSystem : MonoBehaviour {
 
     private float ImmuneUntil;
 
-    void Start() {
+    void Awake() {
         CurrentHP = maxHP;    
     }
-    void Update()
-    {
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
-            TakeDamage(10);
-        if (Keyboard.current != null && Keyboard.current.aKey.wasPressedThisFrame)
-            Heal(10);
-    }
+    //void Update()
+    //{
+    //    if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+    //        TakeDamage(10);
+    //    if (Keyboard.current != null && Keyboard.current.aKey.wasPressedThisFrame)
+    //        Heal(10);
+    //}
 
     public void TakeDamage(int amount) {
         if (!IsAlive || IsImmune) 

@@ -6,6 +6,7 @@ public class PlayerMovement : MonoBehaviour
 
     [SerializeField] private float defaultSpeed = 10f;
     [SerializeField] private float focusMultiplier = .3f;
+    [SerializeField] private float edgePadding = 0.3f;
 
     public float CurrentSpeed { get; private set; }
     public float DefaultSpeed => defaultSpeed;
@@ -17,6 +18,8 @@ public class PlayerMovement : MonoBehaviour
     void Start()
     {
         rigidBody = GetComponent<Rigidbody2D>();
+        rigidBody.bodyType = RigidbodyType2D.Kinematic;
+        rigidBody.sleepMode = RigidbodySleepMode2D.NeverSleep;
         CurrentSpeed = defaultSpeed;
     }
 
@@ -44,7 +47,13 @@ public class PlayerMovement : MonoBehaviour
     void FixedUpdate()
     {
         float speed = isFocused ? CurrentSpeed * focusMultiplier : CurrentSpeed;
+        Vector2 target = rigidBody.position + moveInput * speed * Time.fixedDeltaTime;
         rigidBody.MovePosition(rigidBody.position + moveInput * speed * Time.fixedDeltaTime);
+        if (PlayArea.Instance != null)
+        {
+            target = PlayArea.Instance.Clamp(target, edgePadding);
+        }
+        rigidBody.MovePosition(target);
     }
 
     public void SetSpeed(float newSpeed)
