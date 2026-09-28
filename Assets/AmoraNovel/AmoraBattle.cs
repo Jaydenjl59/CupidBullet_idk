@@ -1,40 +1,214 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
-namespace AmoraNovel {
-public class AmoraBattle : MonoBehaviour {
- class Orb { public RectTransform rect; public Vector2 position,velocity; public bool friendly; }
- readonly List<Orb> orbs=new List<Orb>();
- AmoraGame owner; RectTransform root,field,player; Text hud,barrierLabel; Texture heart; AudioSource audioSource;
- int level,hp=3,barrier=45; float elapsed,spawnClock,shootClock,immune,ringClock; bool stopped;
- public bool Paused; public int HP=>hp; public float Elapsed=>elapsed; public int Barrier=>barrier;
- public float Duration=>level==1?25:32;
- public void Begin(AmoraGame game,Transform canvas,int difficulty,Texture texture,Texture amora,AudioClip sound){owner=game;level=difficulty;heart=texture;barrier=level==1?45:60;root=owner.Panel("Bullet hell",canvas,0,0,1280,720,new Color(.10f,.025f,.12f));
- owner.Label("Title",root,level==1?"CATCH YOUR\nBREATH":"A RACING\nHEART",-437,265,310,105,30,new Color(1,.72f,.83f));
- owner.Label("Instructions",root,"KEEP YOUR HEART SAFE\n\nWASD / arrows · move\nShift · focus\nSpace · shoot\nEsc · pause\n\nSurvive the countdown\nor break the heart barrier.\n\nYour tiny white center\nis your hitbox.",-437,45,315,310,21,new Color(.92f,.77f,.87f));
- owner.Panel("Arena border",root,0,0,564,664,new Color(.84f,.34f,.57f));field=owner.Panel("Arena",root,0,0,556,656,new Color(.15f,.045f,.18f));
- for(int i=0;i<9;i++)owner.Panel("Grid",field,-250+i*62.5f,0,1,650,new Color(1,.6f,.8f,.08f));for(int i=0;i<11;i++)owner.Panel("Grid",field,0,-310+i*62,550,1,new Color(1,.6f,.8f,.08f));
- owner.Label("Emitter",field,"♥",0,269,100,85,70,new Color(1,.42f,.63f));player=owner.Panel("Your heart",field,0,-245,26,26,new Color(.5f,1,1));player.localRotation=Quaternion.Euler(0,0,45);owner.Panel("Hitbox",player,0,0,6,6,Color.white);
- owner.Panel("Composure panel",root,435,-270,290,106,new Color(.10f,.025f,.12f,.93f));hud=owner.Label("Status",root,"",435,-270,295,110,25,Color.white);barrierLabel=owner.Label("Barrier",root,"",435,280,295,70,23,new Color(1,.7f,.84f));
- audioSource=gameObject.AddComponent<AudioSource>();audioSource.clip=sound;audioSource.volume=.10f;
- }
- void Spawn(Vector2 position,Vector2 velocity,bool friendly=false){var r=owner.Panel(friendly?"Your shot":"Heart projectile",field,position.x,position.y,friendly?7:15,friendly?20:15,friendly?new Color(.48f,1,1):new Color(1,.35f,.61f));r.localRotation=Quaternion.Euler(0,0,45);orbs.Add(new Orb{rect=r,position=position,velocity=velocity,friendly=friendly});}
- void Update(){if(stopped||Paused)return;var kb=Keyboard.current;Vector2 move=Vector2.zero;bool fire=false,focus=false;if(kb!=null){move.x=(kb.dKey.isPressed||kb.rightArrowKey.isPressed?1:0)-(kb.aKey.isPressed||kb.leftArrowKey.isPressed?1:0);move.y=(kb.wKey.isPressed||kb.upArrowKey.isPressed?1:0)-(kb.sKey.isPressed||kb.downArrowKey.isPressed?1:0);focus=kb.leftShiftKey.isPressed||kb.rightShiftKey.isPressed;fire=kb.spaceKey.isPressed;}Tick(Mathf.Min(Time.unscaledDeltaTime,.05f),move,fire,focus);}
- public void Tick(float dt,Vector2 move,bool fire,bool focus){if(stopped||Paused)return;elapsed+=dt;immune-=dt;shootClock-=dt;var pos=player.anchoredPosition+move.normalized*(focus?105:265)*dt;pos.x=Mathf.Clamp(pos.x,-260,260);pos.y=Mathf.Clamp(pos.y,-309,225);player.anchoredPosition=pos;player.GetComponent<Image>().color=immune>0&&Mathf.Sin(elapsed*35)>0?new Color(.4f,1,1,.3f):new Color(.4f,1,1);
- if(fire&&shootClock<=0){shootClock=.16f;Spawn(pos+Vector2.up*20,Vector2.up*620,true);if(audioSource.clip)audioSource.Play();}
- spawnClock-=dt;ringClock-=dt;if(elapsed>1.5f&&spawnClock<=0){spawnClock=level==1?.62f:.46f;float sweep=Mathf.Sin(elapsed*.9f)*.48f;for(int i=-2;i<=2;i++){float angle=-Mathf.PI/2+sweep+i*.24f;Spawn(new Vector2(0,265),new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*(level==1?145:175));}}
- if(level==2&&elapsed>5&&ringClock<=0){ringClock=2.8f;for(int i=0;i<14;i++){float a=i*Mathf.PI*2/14+elapsed*.11f;Spawn(new Vector2(Mathf.Sin(elapsed)*120,185),new Vector2(Mathf.Cos(a),Mathf.Sin(a))*115);}}
- for(int i=orbs.Count-1;i>=0;i--){var b=orbs[i];b.position+=b.velocity*dt;b.rect.anchoredPosition=b.position;bool remove=Mathf.Abs(b.position.x)>290||Mathf.Abs(b.position.y)>345;if(b.friendly&&b.position.y>235&&Mathf.Abs(b.position.x)<54){barrier--;remove=true;}else if(!b.friendly&&immune<=0&&Vector2.Distance(b.position,pos)<11){hp--;immune=1.25f;remove=true;}if(remove){Destroy(b.rect.gameObject);orbs.RemoveAt(i);}}
- hud.text="COMPOSURE  "+hp+" / 3\n"+Mathf.CeilToInt(Mathf.Max(0,Duration-elapsed))+" seconds";barrierLabel.text="HEART BARRIER\n"+Mathf.Max(0,barrier);
- if(hp<=0){stopped=true;owner.FinishBattle(false,0,elapsed);}else if(elapsed>=Duration||barrier<=0){stopped=true;owner.FinishBattle(true,hp,elapsed);}}
- public void Stop(){stopped=true;}
- #if UNITY_EDITOR
- public void TestHit(){immune=0;Spawn(player.anchoredPosition,Vector2.zero);Tick(.001f,Vector2.zero,false,false);}
- public void TestSurvive(){for(int i=0;i<orbs.Count;i++)Destroy(orbs[i].rect.gameObject);orbs.Clear();elapsed=Duration-.01f;Tick(.02f,Vector2.zero,false,false);}
- #endif
- void OnDestroy(){if(root)Destroy(root.gameObject);}
-}
-}
+using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 
+namespace AmoraNovel
+{
 
+    // Bridge between AmoraGame (the visual novel) and the bullet hell scenes.
+    // AmoraGame creates and uses this exactly like before. Instead of running its own mini-game,
+    // it loads a bullet hell scene alongside the story, shows that scene's camera inside the
+    // arena frame, and reports the result back to AmoraGame.
+    public class AmoraBattle : MonoBehaviour
+    {
+        // Scene to load for each difficulty AmoraGame passes in (1 = bullethell_1, 2 = start_bullethell_2).
+        // Each scene must be in File > Build Profiles > Scene List.
+        static readonly string[] BattleScenes = { "", "BattleTest_1", "BattleTest_1" };
+
+        // The battle currently running, so BattleManager can report back to it.
+        public static AmoraBattle Active { get; private set; }
+
+        AmoraGame owner;
+        RectTransform root, arena, arenaBorder;
+        RawImage arenaView;
+        RenderTexture arenaTexture;
+        Camera battleCamera;
+        Text hud, barrierLabel;
+        string sceneName;
+        Scene loadedScene;
+        bool sceneLoaded, stopped, paused;
+        float elapsed;
+        PlayerHPSystem player;
+        EnemyHP enemy;
+
+        // AmoraGame sets this from its pause menu.
+        public bool Paused
+        {
+            get => paused;
+            set { paused = value; ApplyTimeScale(); }
+        }
+
+        // Kept so any existing code that reads these still compiles.
+        public int HP => player != null ? player.CurrentHP : 0;
+        public float Elapsed => elapsed;
+        public int Barrier => enemy != null ? enemy.CurrentHP : 0;
+        public float Duration => 0f; // no countdown in this version
+
+        public void Begin(AmoraGame game, Transform canvas, int difficulty, Texture texture, Texture amora, AudioClip sound)
+        {
+            owner = game;
+            Active = this;
+            sceneName = difficulty > 0 && difficulty < BattleScenes.Length ? BattleScenes[difficulty] : BattleScenes[1];
+
+            // Same framing as the original skill check: backdrop, title and instructions on the left,
+            // status on the right, and the arena in the middle.
+            root = owner.Panel("Bullet hell", canvas, 0, 0, 1280, 720, new Color(.10f, .025f, .12f));
+            owner.Label("Title", root, difficulty == 1 ? "CATCH YOUR\nBREATH" : "A RACING\nHEART", -437, 265, 310, 105, 30, new Color(1, .72f, .83f));
+            owner.Label("Instructions", root,
+                "BREAK HER HEART BARRIER\n\nWASD / arrows · move\nShift · focus\nCollect a heart to load a shot\nSpace · send it back\nEsc · pause\n\nIf your composure runs out,\nthe attempt ends.",
+                -437, 45, 315, 310, 21, new Color(.92f, .77f, .87f));
+
+            arenaBorder = owner.Panel("Arena border", root, 0, 0, 564, 664, new Color(.84f, .34f, .57f));
+            arena = owner.Panel("Arena", root, 0, 0, 556, 656, Color.black);
+
+            // The battle camera's picture goes here once the scene has loaded.
+            var viewObject = new GameObject("Arena view", typeof(RectTransform), typeof(RawImage));
+            viewObject.transform.SetParent(arena, false);
+            var viewRect = (RectTransform)viewObject.transform;
+            viewRect.anchorMin = Vector2.zero;
+            viewRect.anchorMax = Vector2.one;
+            viewRect.offsetMin = viewRect.offsetMax = Vector2.zero;
+            arenaView = viewObject.GetComponent<RawImage>();
+            arenaView.raycastTarget = false;
+            arenaView.enabled = false;
+
+            owner.Panel("Composure panel", root, 435, -270, 290, 106, new Color(.10f, .025f, .12f, .93f));
+            hud = owner.Label("Status", root, "", 435, -270, 295, 110, 25, Color.white);
+            barrierLabel = owner.Label("Barrier", root, "", 435, 280, 295, 70, 23, new Color(1, .7f, .84f));
+
+            AsyncOperation load = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            if (load == null)
+            {
+                Debug.LogError($"AmoraBattle: couldn't load scene '{sceneName}'. Is it in the Build Profiles scene list?");
+                return;
+            }
+            load.completed += _ => OnSceneLoaded();
+        }
+
+        void OnSceneLoaded()
+        {
+            // The scene that just finished loading is always the last one in the list.
+            // Keeping this exact handle matters on a retry, when an old copy may still be unloading.
+            Scene scene = SceneManager.GetSceneAt(SceneManager.sceneCount - 1);
+
+            // The battle was closed (e.g. back to title) while the scene was still loading.
+            if (this == null)
+            {
+                SceneManager.UnloadSceneAsync(scene);
+                return;
+            }
+
+            loadedScene = scene;
+            sceneLoaded = true;
+
+            // The story scene already has these; duplicates cause warnings or double input.
+            foreach (GameObject rootObject in scene.GetRootGameObjects())
+            {
+                foreach (AudioListener listener in rootObject.GetComponentsInChildren<AudioListener>(true))
+                    listener.enabled = false;
+                foreach (EventSystem eventSystem in rootObject.GetComponentsInChildren<EventSystem>(true))
+                    eventSystem.gameObject.SetActive(false);
+            }
+
+            player = FindAnyObjectByType<PlayerHPSystem>();
+            enemy = FindAnyObjectByType<EnemyHP>();
+            PlayArea playArea = FindAnyObjectByType<PlayArea>();
+
+            if (playArea == null)
+            {
+                Debug.LogError($"AmoraBattle: scene '{sceneName}' has no PlayArea on its camera.");
+                return;
+            }
+
+            // Fit the arena frame to the play area's shape (it was built for a tall rectangle).
+            Vector2 areaSize = playArea.Size;
+            float aspect = areaSize.x / areaSize.y;
+            float maxWidth = 556f, maxHeight = 656f;
+            float width = maxWidth, height = maxWidth / aspect;
+            if (height > maxHeight) { height = maxHeight; width = maxHeight * aspect; }
+            arena.sizeDelta = new Vector2(width, height);
+            arenaBorder.sizeDelta = new Vector2(width + 8f, height + 8f);
+
+            // Render the battle camera into a texture and show it in the arena.
+            int textureHeight = 1024;
+            int textureWidth = Mathf.RoundToInt(textureHeight * aspect);
+            arenaTexture = new RenderTexture(textureWidth, textureHeight, 24) { name = "Bullet hell arena" };
+            battleCamera = playArea.GetComponent<Camera>();
+            playArea.RenderToTexture(arenaTexture);
+            arenaView.texture = arenaTexture;
+            arenaView.enabled = true;
+
+            ApplyTimeScale();
+        }
+
+        void Update()
+        {
+            if (!sceneLoaded || stopped || paused) return;
+
+            elapsed += Time.deltaTime;
+
+            if (player != null)
+                hud.text = "COMPOSURE  " + player.CurrentHP + " / " + player.MaxHP;
+            if (enemy != null)
+                barrierLabel.text = "HEART BARRIER\n" + enemy.CurrentHP;
+        }
+
+        // Called by BattleManager when the fight ends.
+        public void ReportResult(bool won, int hp, int maxHP, float duration)
+        {
+            if (stopped || owner == null) return;
+            owner.FinishBattle(won, hp, duration, maxHP);
+        }
+
+        // Kept for AmoraSetup's editor tests, which drove the old mini-game frame by frame.
+        // The new battle runs on its own in its scene, so this only advances the timer (and respects pause).
+        public void Tick(float dt, Vector2 move, bool fire, bool focus)
+        {
+            if (stopped || paused) return;
+            elapsed += dt;
+        }
+
+        // Called by AmoraGame when it shows the result screen. Freezes the arena behind it.
+        public void Stop()
+        {
+            stopped = true;
+            ApplyTimeScale();
+        }
+
+        void ApplyTimeScale()
+        {
+            // AmoraGame animates with unscaled time, so this only freezes the bullet hell.
+            Time.timeScale = (paused || stopped) ? 0f : 1f;
+        }
+
+#if UNITY_EDITOR
+        public void TestHit() { if (player != null) player.TakeDamage(1); }
+        public void TestSurvive() { ReportResult(true, HP, player != null ? player.MaxHP : 0, elapsed); }
+        public void TestLose() { ReportResult(false, 0, player != null ? player.MaxHP : 0, elapsed); }
+#endif
+
+        void OnDestroy()
+        {
+            if (Active == this) Active = null;
+            Time.timeScale = 1f;
+
+            // Stop the camera drawing into the texture before releasing it.
+            if (battleCamera != null)
+            {
+                battleCamera.enabled = false;
+                battleCamera.targetTexture = null;
+            }
+            if (arenaTexture != null)
+            {
+                arenaTexture.Release();
+                Destroy(arenaTexture);
+            }
+
+            if (sceneLoaded && loadedScene.isLoaded)
+                SceneManager.UnloadSceneAsync(loadedScene);
+
+            if (root) Destroy(root.gameObject);
+        }
+    }
+}

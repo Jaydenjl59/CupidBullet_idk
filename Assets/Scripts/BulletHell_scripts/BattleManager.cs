@@ -1,22 +1,22 @@
 using UnityEngine;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using AmoraNovel;
 
-public class BattleManager: MonoBehaviour
+public class BattleManager : MonoBehaviour
 {
-    [SerializeField] private string battleId = "battle_1";
+    [SerializeField] private string battleId = "battle_1"; // only used when this scene runs on its own
     [SerializeField] private PlayerHPSystem player;
     [SerializeField] private EnemyHP enemy;
 
-    [Header("Scenes to load (names must be in the build's scene list)")]
+    [Header("Scenes to load when testing this scene on its own")]
     [SerializeField] private string winScene = "";
     [SerializeField] private string loseScene = "";
     [SerializeField] private float delayBeforeLoad = 1.5f;
 
-    //private bool battleDone;
     public static bool BattleDone { get; private set; }
     private float startTime;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+
     void Start()
     {
         BattleDone = false;
@@ -52,38 +52,47 @@ public class BattleManager: MonoBehaviour
 
         BattleDone = true;
 
+        // Capture the result now, before anything gets hidden.
+        int hp = player != null ? player.CurrentHP : 0;
+        int maxHP = player != null ? player.MaxHP : 0;
+        float duration = Time.time - startTime;
+
+        if (win && enemy != null)
+            enemy.gameObject.SetActive(false);
+        if (!win && player != null)
+            player.gameObject.SetActive(false);
+
+        StartCoroutine(FinishAfterDelay(win, hp, maxHP, duration));
+    }
+
+    private IEnumerator FinishAfterDelay(bool win, int hp, int maxHP, float duration)
+    {
+        yield return new WaitForSeconds(delayBeforeLoad);
+
+        // Inside the visual novel: let AmoraGame record the result and continue the story.
+        if (AmoraBattle.Active != null)
+        {
+            AmoraBattle.Active.ReportResult(win, hp, maxHP, duration);
+            yield break;
+        }
+
+        // Running this scene on its own (for testing): record and load the next scene ourselves.
         GameData.RecordBattle(new GameData.BattleResult
         {
             battleId = battleId,
             win = win,
-            playerHP = player != null ? player.CurrentHP : 0,
-            playerMaxHP = player != null ? player.MaxHP : 0,
-            duration = Time.time - startTime
+            playerHP = hp,
+            playerMaxHP = maxHP,
+            duration = duration
         });
-        if (win && enemy != null) 
-            enemy.gameObject.SetActive(false);
-        if (!win && player != null) 
-            player.gameObject.SetActive(false);
 
-        StartCoroutine(LoadAfterDelay(win ? winScene : loseScene));
-
-    }
-
-    private IEnumerator LoadAfterDelay(string sceneName)
-    {
-        yield return new WaitForSeconds(delayBeforeLoad);
-
+        string sceneName = win ? winScene : loseScene;
         if (string.IsNullOrEmpty(sceneName))
         {
-            Debug.Log("BattleManager: battle ended, but no scene is set to load.");
+            Debug.Log($"BattleManager: battle ended (won: {win}, HP {hp}/{maxHP}), but no scene is set to load.");
             yield break;
         }
 
         SceneManager.LoadScene(sceneName);
-    }
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 }

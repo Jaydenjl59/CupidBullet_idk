@@ -30,11 +30,25 @@ public class PlayArea : MonoBehaviour
         ApplyViewport();
     }
 
+    // The size of whatever the camera draws to: the screen normally, or a texture inside the visual novel.
+    private int TargetWidth => cam.targetTexture != null ? cam.targetTexture.width : Screen.width;
+    private int TargetHeight => cam.targetTexture != null ? cam.targetTexture.height : Screen.height;
+
     void Update()
     {
         // aligns if the window is resized or the size is changed in the inspector during play mode.
-        if (Screen.width != lastWidth || Screen.height != lastHeight || Size != lastSize)
+        if (TargetWidth != lastWidth || TargetHeight != lastHeight || Size != lastSize)
             ApplyViewport();
+    }
+
+    // Used by AmoraBattle: draw the arena into a texture instead of the screen.
+    // The texture is already the arena's shape, so the black bars aren't needed.
+    public void RenderToTexture(RenderTexture texture)
+    {
+        cam.targetTexture = texture;
+        if (barsCam != null)
+            barsCam.gameObject.SetActive(texture == null);
+        ApplyViewport();
     }
 
     private void CreateBarsCamera()
@@ -53,14 +67,14 @@ public class PlayArea : MonoBehaviour
 
     private void ApplyViewport()
     {
-        lastWidth = Screen.width;
-        lastHeight = Screen.height;
+        lastWidth = TargetWidth;
+        lastHeight = TargetHeight;
         lastSize = Size;
 
         Vector2 size = Size;
         if (size.x <= 0f || size.y <= 0f) return; // ignore invalid sizes while typing in the Inspector
 
-        float screenAspect = (float)Screen.width / Screen.height;
+        float screenAspect = (float)TargetWidth / TargetHeight;
         float areaAspect = size.x / size.y; // 1 = square, above 1 = wide, below 1 = tall
 
         if (screenAspect >= areaAspect)

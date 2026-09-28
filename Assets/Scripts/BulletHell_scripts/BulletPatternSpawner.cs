@@ -52,7 +52,7 @@ public class BulletPatternSpawner : MonoBehaviour
     [Header("Enemy Link")]
     [SerializeField] private EnemyHP enemyHP;
     [SerializeField] private bool colorByEnemyHP = true;
-    [SerializeField] private Color fullHPColor = Color.black; // bullet color at full enemy HP
+    [SerializeField] private Color fullHPColor = Color.white; // bullet color at full enemy HP
     [SerializeField] private Color lowHPColor = Color.red; // bullet color near 0 enemy HP
 
     // defaults for new spawners
